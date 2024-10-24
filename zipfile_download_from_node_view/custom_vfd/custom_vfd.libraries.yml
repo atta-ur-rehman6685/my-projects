@@ -1,0 +1,7 @@
+download_files:
+  version: 1.x
+  js:
+    js/custom_vfd_script.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupalSettings

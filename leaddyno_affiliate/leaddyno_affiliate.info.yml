@@ -1,0 +1,8 @@
+name: 'LeadDyno Affiliate Integration'
+type: module
+description: 'Registers affiliates using the LeadDyno API.'
+package: Custom
+core_version_requirement: ^10
+dependencies:
+  - drupal:rest
+  - drupal:commerce

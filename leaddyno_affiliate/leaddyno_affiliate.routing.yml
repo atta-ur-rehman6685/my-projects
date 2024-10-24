@@ -1,0 +1,15 @@
+leaddyno_affiliate.settings:
+  path: '/admin/config/services/leaddyno-affiliate'
+  defaults:
+    _form: '\Drupal\leaddyno_affiliate\Form\LeadDynoAffiliateSettingsForm'
+    _title: 'LeadDyno Affiliate Settings'
+  requirements:
+    _permission: 'administer site configuration'
+
+leaddyno_affiliate.register_affiliate:
+  path: '/affiliate/register'
+  defaults:
+    _controller: '\Drupal\leaddyno_affiliate\Controller\LeadDynoAffiliateController::registerAffiliate'
+    _title: 'Register Affiliate'
+  requirements:
+    _permission: 'access content'

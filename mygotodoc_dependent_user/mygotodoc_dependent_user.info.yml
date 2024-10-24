@@ -1,0 +1,7 @@
+name: 'MyGotodoc Dependent User'
+type: module
+description: 'Provides custom theming for the user registration form.'
+package: Custom
+core_version_requirement: ^9 || ^10 || ^11
+dependencies:
+  - commerce_checkout_redirect:commerce_checkout_redirect

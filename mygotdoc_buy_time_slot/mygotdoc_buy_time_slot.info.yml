@@ -1,0 +1,8 @@
+name: Bookable calander buy slot
+type: module
+description: Bookable calander slot make purchasable
+package: Commerce Buy Now
+core_version_requirement: ^10
+dependencies:
+  - commerce:commerce
+  - commerce:commerce_cart

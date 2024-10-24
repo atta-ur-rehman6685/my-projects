@@ -1,0 +1,71 @@
+<div
+				class="affiliate-dashboard">
+
+				<!-- Referral Link Section -->
+				<div class="referral-link-section">
+					<label for="referral-link">Your Referral Link</label>
+					<div class="referral-link-wrapper">
+						<input id="referral-link" type="text" value={{ referral_link }} readonly>
+						<button class="copy-link-btn" onclick="copyToClipboard('#referral-link')">Copy Link</button>
+					</div>
+				</div>
+
+				<!-- Progress Section -->
+				<div class="progress-section">
+					<h2>Your Progress</h2>
+					<div class="progress-metrics">
+						{# <div class="metric">
+							<span class="label">Conversion Rate</span>
+							<span class="value"{{ conversion_rate }}</span>
+						</div> #}
+						<div class="metric">
+							<span class="label">Customers Referred</span>
+							<span class="value">{{ customers_referred }}</span>
+						</div>
+						<div class="metric">
+							<span class="label">Purchases</span>
+							<span class="value">{{ purchases }}</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Payments Section -->
+				<div class="payments-section">
+					<h2>Your Payments</h2>
+					<div class="commission-structure">
+						<div class="commission-row">
+							<div class="commission-label">compensation</div>
+							<div class="commission-value">${{ compensation }}</div>
+						</div>
+						<div class="commission-row">
+							<div class="commission-label">commissions due</div>
+							<div class="commission-value">${{ commissions_due }}</div>
+						</div>
+						<div class="commission-row">
+							<div class="commission-label">commissions upcoming</div>
+							{% if commissions_upcomming %}
+								<div class="commission-value">${{ commissions_upcomming }}</div>
+							{% else %}
+								<div class="commission-value">$0.00</div>
+
+							{% endif %}
+							
+						</div>
+						<div class="commission-row">
+							<div class="commission-label">commissions paid</div>
+							<div class="commission-value">${{ commissions_paid }}</div>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+			<!-- Copy to Clipboard Script -->
+			<script>
+				function copyToClipboard(selector) {
+          var copyText = document.querySelector(selector);
+          copyText.select();
+          document.execCommand("copy");
+          alert("Copied the link: " + copyText.value);
+          }
+			</script>

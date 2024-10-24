@@ -1,0 +1,106 @@
+<?php
+
+use Drupal\node\NodeInterface;
+use Drupal\Core\Url;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\mygotodoc_independent_user\Controller\IndependentUserController;
+use Drupal\Core\Datetime\DrupalDateTime;
+
+/**
+ * Implements hook_node_view_alter().
+ * Adds a "Release Account" button to the "child_accounts" node.
+ */
+function mygotodoc_independent_user_node_view_alter(array &$build, NodeInterface $node) {
+  // Check if it's a child_accounts content type.
+  if ($node->bundle() === 'child_accounts') {
+    // Ensure the node object contains the field.
+    if ($node->hasField('field_dependent_account_for') && !$node->get('field_dependent_account_for')->isEmpty()) {
+      // Get the target ID (term ID) from the entity reference field.
+      $term_id = $node->get('field_dependent_account_for')->target_id;
+      
+      // Load the term entity using the term ID.
+      $term = Term::load($term_id);
+      
+      if ($term) {
+        // kint()
+        // Check if the term's name is 'child'.
+        if ($term->getName() === 'Spouse') {
+          // Add a "Release Account" button.
+          $build['make_independent'] = [
+            '#type' => 'link',
+            '#title' => t('Release Account'),
+            '#url' => Url::fromRoute('mygotodoc_independent_user.confirm_modal', ['node' => $node->id()]),
+            '#attributes' => [
+              'class' => ['use-ajax', 'button--primary', 'release-action'],
+              'data-dialog-type' => 'modal',
+            ],
+            '#attached' => [
+              'library' => ['core/drupal.dialog.ajax'],
+            ],
+          ];
+        }
+      }
+    }
+    
+  }
+}
+
+/**
+ * Implements hook_cron().
+ */
+function mygotodoc_independent_user_cron() {
+  // Get the last run timestamp.
+  // $last_run = \Drupal::state()->get('mgtd_order_event_subscriber.last_cron_run', 0);
+  
+  // Check if the cron has been run in the last 24 hours.
+  // if (time() - $last_run > 86400) {  // 86400 seconds = 24 hours
+    // Load all nodes of content type 'child_accounts' where field_dependent_account_for is 'child'.
+    $query = \Drupal::entityTypeManager()->getStorage('node')->getQuery()
+      ->condition('type', 'child_accounts')
+      ->condition('field_dependent_account_for.entity.name', 'child') // Filter by taxonomy term name 'child'.
+      ->accessCheck(false); // Disable access check if needed.
+
+    $nids = $query->execute();
+    
+    if (!empty($nids)) {
+      // Load the nodes.
+      $nodes = \Drupal\node\Entity\Node::loadMultiple($nids);
+
+      foreach ($nodes as $node) {
+        // Check if the node has the 'field_medical_form_inputs' field.
+        if ($node->hasField('field_medical_form_inputs')) {
+          // Get the paragraph items from 'field_medical_form_inputs'.
+          $paragraphs = $node->get('field_medical_form_inputs')->referencedEntities();
+
+          foreach ($paragraphs as $paragraph) {
+            // Check if the paragraph has the 'field_date_of_birth'.
+            if ($paragraph->hasField('field_date_of_birth')) {
+              
+              $date_of_birth = $paragraph->get('field_date_of_birth')->value;
+              if (!empty($date_of_birth)) {
+                // Convert the date of birth to a DrupalDateTime object.
+                $birth_date = new DrupalDateTime($date_of_birth);
+                $current_date = new DrupalDateTime('now');
+                // Calculate the age by comparing current date with date of birth.
+                $age = $current_date->diff($birth_date)->y;
+                if ($age >= 18) {
+                  // Instantiate the IndependentUserController.
+                  $controller = new IndependentUserController();
+
+                  // Define a flag indicating the source is node_insert.
+                  $flag = 'independent_from_cron';
+
+                  // Call the `ajaxCreateUser` method with the node and flag.
+                  $response = $controller->ajaxCreateUser($node, $flag);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // // Update the last run timestamp.it was updated in mgtd_order_event_subscriber custom module
+    // \Drupal::state()->set('mgtd_order_event_subscriber.last_cron_run', time());
+  // }
+}

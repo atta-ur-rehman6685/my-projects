@@ -1,0 +1,24 @@
+<?php
+/**
+ * @file
+ * Primary theme hooks.
+ *
+ */
+function leaddyno_affiliate_theme($existing, $type, $theme, $path) {
+  $theme = [];
+  $theme['affiliate_dasboard'] = [
+    'template' => 'affiliate-dasboard',
+    'path' => \Drupal::service('extension.path.resolver')->getPath('module', 'leaddyno_affiliate').'/templates',
+    'variables' => [
+        'referral_link' => NULL,
+        'conversion_rate' => NULL,
+        'customers_referred' => NULL,
+        'purchases' => NULL,
+        'compensation' => NULL,
+        'commissions_due' => NULL,
+        'commissions_upcoming' => NULL,
+        'commissions_paid' => NULL,
+    ],
+  ];
+  return $theme;
+}

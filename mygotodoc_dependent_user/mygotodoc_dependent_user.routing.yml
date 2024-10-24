@@ -1,0 +1,14 @@
+mygotodoc_dependent_user.verify:
+  path: '/verify-account/{nid}'
+  defaults:
+    _controller: '\Drupal\mygotodoc_dependent_user\Controller\AccountVerificationController::verifyAccount'
+    _title: 'Verify Account'
+  requirements:
+    _permission: 'access content'
+mygotodoc_dependent_user.form:
+  path: '/child-accounts-form'
+  defaults:
+    _form: '\Drupal\mygotodoc_dependent_user\Form\ChildAccountsForm'
+    _title: 'Child Accounts Form'
+  requirements:
+    _permission: 'access content'

@@ -1,0 +1,8 @@
+name: 'MyGotodoc Independent User'
+type: module
+description: 'Create a new independent user from child_accounts node.'
+package: Custom
+core_version_requirement: ^10
+dependencies:
+  - drupal:user
+  - drupal:node

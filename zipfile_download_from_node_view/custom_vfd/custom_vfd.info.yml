@@ -1,0 +1,10 @@
+name: View Custom File Downloader
+description: Download files attached to a view or node in a Zip file.
+type: module
+core_version_requirement: ^8.8 || ^9 || ^10
+package: 'Custom'
+version: '1.0'
+dependencies:
+  - drupal:core
+requirements:
+    _permission: 'access custom_vfd'

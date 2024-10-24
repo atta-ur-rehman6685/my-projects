@@ -1,0 +1,7 @@
+medical_form_config.settings:
+  path: '/admin/config/medical-form-fields'
+  defaults:
+    _form: '\Drupal\medical_form_config\Form\MedicalFormConfigForm'
+    _title: 'Medical Form Fields Configuration'
+  requirements:
+    _permission: 'administer site configuration'

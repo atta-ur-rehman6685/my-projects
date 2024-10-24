@@ -1,0 +1,3 @@
+access custom_vfd:
+  title: 'Download files'
+  description: 'Download all files linked with view or node'

@@ -1,0 +1,6 @@
+reload_page:
+  version: 1.x
+  js:
+    js/reload_page.js: {}
+  dependencies:
+    - core/jquery

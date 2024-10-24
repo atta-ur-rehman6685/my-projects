@@ -1,0 +1,8 @@
+google-maps-api:
+  version: 1.x
+  js:
+    https://maps.googleapis.com/maps/api/js?key=AIzaSyAxwvVJiFQllZCV0p7IRIb6qD_BG7NHn0E&libraries=places: {}
+    js/place-autocomplete-script.js: {}
+  dependencies:
+    - core/jquery
+

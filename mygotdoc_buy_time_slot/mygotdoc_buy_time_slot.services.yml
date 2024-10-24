@@ -1,0 +1,17 @@
+services:
+  mygotdoc_buy_time_slot.cart_order_item_subscriber:
+    class: Drupal\mygotdoc_buy_time_slot\EventSubscriber\CartEntityAddEventSubscriber
+    arguments: ['@messenger', '@string_translation', '@entity_type.manager']
+    tags:
+      - { name: event_subscriber }
+  mygotdoc_buy_time_slot.cart_order_item_subscriber_one:
+    class: Drupal\mygotdoc_buy_time_slot\EventSubscriber\CartEventSubscriber
+    arguments: ['@messenger', '@string_translation', '@entity_type.manager', '@commerce_cart.cart_manager']
+    tags:
+      - { name: event_subscriber }
+
+  mygotdoc_buy_time_slot.order_placed_subscriber:
+    class: Drupal\mygotdoc_buy_time_slot\EventSubscriber\OrderPlacedSubscriber
+    arguments: ['@leaddyno_affiliate.purchase_service', '@logger.factory']
+    tags:
+      - { name: event_subscriber }

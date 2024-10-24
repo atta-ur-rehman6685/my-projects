@@ -1,0 +1,8 @@
+<?php
+
+/**
+ * Implements hook_page_attachments().
+ */
+function custom_vfd_page_attachments(array &$attachments) {
+  $attachments['#attached']['library'][] = 'custom_vfd/download_files';
+}

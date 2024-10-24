@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for Commerce Buy Now module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mygotdoc_buy_now_form_commerce_order_item_add_to_cart_form_alter(&$form, FormStateInterface $form_state) {
+  $form['actions']['commerce_buy_now'] = [
+    '#type' => 'submit',
+    '#value' => t('Buy Now'),
+    '#weight' => 10,
+    '#submit' => ['_mygotdoc_buy_now_submit'],
+    '#attributes' => [
+      'class' => ['button--primary button--buy-now light-btn'],
+    ],
+  ];
+}
+
+/**
+ * Adds an item to the shopping cart and redirects to the checkout page.
+ *
+ * @param array $form
+ *   Nested array of form elements that comprise the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function _mygotdoc_buy_now_submit($form, FormStateInterface $form_state) {
+  $form_storage = $form_state->getStorage();
+  $product = $form_storage['product'];
+
+  $product_variation_id = $product->get('variations')->target_id;
+  $store_id = $product->get('stores')->target_id;
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $variation_obj = $entity_type_manager
+    ->getStorage('commerce_product_variation')
+    ->load($product_variation_id);
+  $store = $entity_type_manager
+    ->getStorage('commerce_store')
+    ->load($store_id);
+
+  $cart_provider = \Drupal::service('commerce_cart.cart_provider');
+  $cart = $cart_provider->getCart('default', $store);
+
+  if (!$cart) {
+    $cart = $cart_provider->createCart('default', $store);
+  }
+
+  $entity_type_manager->getStorage('commerce_order_item_type');
+  $cart_manager = \Drupal::service('commerce_cart.cart_manager');
+
+  $user_input = $form_state->getUserInput();
+  $quantity = isset($user_input['quantity'][0]['value']) && $user_input['quantity'][0]['value'] > 0
+    ? $user_input['quantity'][0]['value']
+    : '1';
+
+  $cart_manager->addEntity($cart, $variation_obj, $quantity);
+  if($product->bundle() == "health_programs" || $product->bundle() == "phenix_protocol"){
+    $url = Url::fromRoute('commerce_checkout.checkout');
+    $form_state->setRedirectUrl($url);
+  }
+  else{
+    $url = Url::fromRoute('commerce_cart.page');
+    $form_state->setRedirectUrl($url);
+  }
+}

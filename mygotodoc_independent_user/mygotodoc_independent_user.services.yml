@@ -1,0 +1,4 @@
+services:
+  mygotodoc_independent_user.access_check:
+    class: Drupal\mygotodoc_independent_user\Access\IndependentUserAccessCheck
+    arguments: ['@current_user']

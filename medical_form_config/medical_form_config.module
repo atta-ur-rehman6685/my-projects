@@ -1,0 +1,16 @@
+<?php
+
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
+/**
+ * Implements hook_entity_field_storage_create().
+ */
+function medical_form_config_entity_field_storage_create(\Drupal\Core\Entity\EntityStorageInterface $field_storage) {
+  if ($field_storage->getTargetEntityTypeId() == 'node' && $field_storage->getTargetBundle() == 'medical_form') {
+    $config = \Drupal::configFactory()->getEditable('medical_form_config.settings');
+    $field_product_mapping = $config->get('field_product_mapping') ?: [];
+    $field_product_mapping[$field_storage->getName()] = [];
+    $config->set('field_product_mapping', $field_product_mapping)->save();
+  }
+}

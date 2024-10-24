@@ -1,0 +1,348 @@
+<?php
+
+use Drupal\node\Entity\Node;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Session\AccountInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\user\UserInterface;
+use Drupal\Core\Render\Markup;
+
+/**
+ * Implements hook_preprocess_HOOK() for page templates.
+ */
+function mygotodoc_dependent_user_preprocess_page(&$variables)
+{
+    // $route_name = \Drupal::routeMatch()->getRouteName();
+
+    // if ($route_name === 'user.register') {
+    // Create a node object for the 'child_accounts' content type.
+    $node = \Drupal\node\Entity\Node::create(['type' => 'child_accounts']);
+    // Generate the form for this node.
+    $form = \Drupal::service('entity.form_builder')->getForm($node);
+    // Pass the form to the Twig template.
+    $variables['child_accounts_form'] = $form;
+    // }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave() for node entities.
+ */
+function mygotodoc_dependent_user_node_presave(\Drupal\node\NodeInterface $node)
+{
+    // Check if the node is of type 'child_account'.
+    if ($node->bundle() === 'child_accounts') {
+        // Check if the user reference field is empty.
+        if ($node->get('field_parent_user_id')->isEmpty()) {
+            // Set the current user's ID as the field value.
+            $current_user_id = \Drupal::currentUser()->id();
+            $node->set('field_parent_user_id', ['target_id' => $current_user_id]);
+        } 
+    }
+   
+}
+
+
+function check_user_has_child_accounts()
+{
+    $current_user_id = \Drupal::currentUser()->id();
+
+    $query = \Drupal::entityQuery('node')
+        ->condition('type', 'child_accounts')
+        ->condition('field_parent_user_id', $current_user_id)
+        ->condition('status', 1)  // Ensure the node is published
+        ->accessCheck(FALSE); // Set access check according to your security policy
+
+    $nids = $query->execute();
+
+    return !empty($nids);
+}
+
+
+// /**
+//  * Implements hook_form_FORM_ID_alter().
+//  */
+// function mygotodoc_dependent_user_form_child_accounts_form_alter(&$form, FormStateInterface $form_state, $form_id)
+// {
+//     $form['#submit'][] = 'commerce_checkout_redirect_checkout_redirect';
+// }
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mygotodoc_dependent_user_form_alter(&$form, FormStateInterface $form_state, $form_id)
+{   
+  if ($form_id === 'node_child_accounts_form') {
+
+    $form['#validate'][] = 'mygotodoc_dependent_user_form_validation';
+      $form['#submit'] = [];
+      // Add a custom submit handler.
+      $form['actions']['submit']['#submit'][] = 'mygotodoc_dependent_user_form_submit';
+
+      if (isset($form['actions']['preview'])) {
+          unset($form['actions']['preview']); // This removes the preview button entirely.
+      }
+  }
+  if($form_id === 'user_register_form'){
+    
+    $form['field_image_and_id_provide_later']['widget']['#title'] = '';
+    $form['field_image_and_id_provide_later']['widget']['#title_display'] = 'none';
+    
+    $form['#validate'][] = 'user_register_validate_dependent_user_dateofbirth_email';
+  }
+  
+}
+
+/**
+ * Custom validate handler for dependent accounts form.
+ */
+function user_register_validate_dependent_user_dateofbirth_email(&$form, \Drupal\Core\Form\FormStateInterface $form_state)
+{  
+  // Get the value of the field_date_of_birth.
+  $date_of_birth = $form_state->getValue('field_medical_form_inputs')[0]['subform']['field_date_of_birth'][0]['value'];
+  
+  // Get the values of the user picture and patient ID fields.
+  $user_picture = $form_state->getValue('user_picture');
+  $field_patient_id = $form_state->getValue('field_patient_id');
+  $provide_later_checked = $form_state->getValue('field_image_and_id_provide_later');
+
+  // Check if both fields have file IDs (fids).
+  $user_picture_has_file = !empty($user_picture[0]['fids']);
+  $patient_id_has_file = !empty($field_patient_id[0]['fids']);
+
+  // If both fields have files uploaded (fids are set).
+  if ($user_picture_has_file && $patient_id_has_file) {
+    // Automatically uncheck the 'field_image_and_id_provide_later' checkbox if it's checked.
+    if (!empty($provide_later_checked)) {
+      $form_state->setValue('field_image_and_id_provide_later', []);
+    }
+  }
+  // If neither fields are filled and the checkbox is not checked, show validation errors.
+  elseif (empty($provide_later_checked)) {
+    if (!$user_picture_has_file) {
+      $form_state->setErrorByName('user_picture', t('Picture is required unless you choose to provide it later.'));
+    }
+    if (!$patient_id_has_file) {
+      $form_state->setErrorByName('field_patient_id', t('Patient ID is required unless you choose to provide it later.'));
+    }
+    if (!$user_picture_has_file || !$patient_id_has_file) {
+      $form_state->setErrorByName('field_image_and_id_provide_later', t('You can proceed by checking the "I will provide later" checkbox.'));
+    }
+  }
+  // Convert the date of birth to a DrupalDateTime object.
+  $birth_date = new DrupalDateTime($date_of_birth);
+  $current_date = new DrupalDateTime('now');
+
+  // Calculate the age by comparing current date with date of birth.
+  $age = $current_date->diff($birth_date)->y;
+
+  // Check if the user is under 18 years old.
+  if ($birth_date > $current_date) {
+    $form_state->setErrorByName('field_medical_form_inputs][0][subform][field_date_of_birth][0][value', t('The date of birth cannot be a future date.'));
+  }elseif ($age < 18) {
+    $form_state->setErrorByName('field_medical_form_inputs][0][subform][field_date_of_birth][0][value', t('You are under 18 years old. Please request your parent or guardian to add you as a dependent account..'));
+  }
+  else{
+    // Get the email entered by the user.
+    $email = $form_state->getValue('mail');
+
+    // Load nodes of type 'child_accounts' with the given email.
+    $query = \Drupal::entityQuery('node')
+        ->condition('type', 'child_accounts')
+        ->condition('field_email', $email)
+        ->accessCheck(false)
+        ->range(0, 1);  // Limit to one result for efficiency.
+
+    $nids = $query->execute();
+    $nid = reset($nids);
+    // kint($nid);
+    // If a matching node is found, redirect to the make-independent route.
+    if (!empty($nid)) {
+      
+      $node = Node::load($nid);
+
+      // Ensure the node object contains the field.
+      if ($node->hasField('field_dependent_account_for') && !$node->get('field_dependent_account_for')->isEmpty()) {
+        // Get the target ID (term ID) from the entity reference field.
+        $term_id = $node->get('field_dependent_account_for')->target_id;
+        
+        // Load the term entity using the term ID.
+        $term = Term::load($term_id);
+        
+        if ($term) {
+          // kint()
+          // Check if the term's name is 'child'.
+          if ($term->getName() === 'child') {
+            // The term name is 'child', do something here.
+            $form_state->setErrorByName('mail', t('Your account already exists as a dependent account. When you turn 18, your account will automatically be converted to an independent user account, and you will receive an email notification'));
+          }
+          else {
+            $nid = reset($nids);  // Get the first node ID from the result.
+            // Set a message to indicate redirection.
+            \Drupal::messenger()->addMessage(t('An account with this email already exists. You are being redirected.'), 'status');
+
+            // Redirect to the custom route.
+            $response = new RedirectResponse("/node/{$nid}/make-independent/create");
+            $response->send();
+            exit;
+            // Stop further processing.
+            $form_state->setResponse($response);
+          }
+        }
+      } 
+    }
+  }
+    
+}
+
+/**
+ * Custom submit handler for child accounts form.
+ */
+function mygotodoc_dependent_user_form_validation(&$form, \Drupal\Core\Form\FormStateInterface $form_state)
+{
+  $dependentaccountfor = $form_state->getValue('field_dependent_account_for');
+  if (!empty($dependentaccountfor) && isset($dependentaccountfor[0]['target_id'])) {
+    $term_target_id = $dependentaccountfor[0]['target_id'];
+  }
+  
+    // Get the value of the field_date_of_birth.
+    $date_of_birth = $form_state->getValue('field_medical_form_inputs')[0]['subform']['field_date_of_birth'][0]['value'];
+    // Convert the date of birth to a DrupalDateTime object.
+    $birth_date = new DrupalDateTime($date_of_birth);
+    $current_date = new DrupalDateTime('now');
+  
+    // Calculate the age by comparing current date with date of birth.
+    $age = $current_date->diff($birth_date)->y;
+  
+    // Check if the user is under 18 years old.
+    if ($birth_date > $current_date) {
+      $form_state->setErrorByName('field_medical_form_inputs][0][subform][field_date_of_birth][0][value', t('The date of birth cannot be a future date.'));
+    }
+    elseif ($age > 18) {
+      // Load the term entity using the term ID.
+      $term = Term::load($term_target_id);
+      
+      if ($term) {
+        // kint()
+        // Check if the term's name is 'child'.
+        if ($term->getName() === 'child') {
+          // The term name is 'child'
+          $form_state->setErrorByName('field_medical_form_inputs][0][subform][field_date_of_birth][0][value', 
+          Markup::create(t('You are above 18 years old. You may create a dependent account as a Spouse, or create your independent account by following this link <a href="@url" style="text-decoration: underline; color: #d9534f;">Register</a>', ['@url' => '/user/register']))
+        );
+
+        }
+      }
+    }
+}
+
+/**
+ * Custom submit handler for child accounts form.
+ */
+function mygotodoc_dependent_user_form_submit(&$form, \Drupal\Core\Form\FormStateInterface $form_state)
+{
+    // Get the node object from the form state.
+    $node = $form_state->getFormObject()->getEntity();
+
+    // Save the node.
+    $node->save();
+
+    // Explicitly set the redirect URL to '/child-accounts-listing'.
+    $form_state->setRedirectUrl(Url::fromUserInput('/child-accounts-listing'));
+}
+
+/**
+ * Implements hook_node_insert() and hook_node_update().
+ */
+function mygotodoc_dependent_user_node_insert(Node $node) {
+  mygotodoc_dependent_user_handle_node_save($node);
+}
+
+// function mygotodoc_dependent_user_node_update(Node $node) {
+//   mygotodoc_dependent_user_handle_node_save($node);
+// }
+
+/**
+ * Handles the logic for generating verification link and sending email.
+ */
+function mygotodoc_dependent_user_handle_node_save(Node $node) {
+  // Get the current user.
+  $current_user = \Drupal::currentUser();
+
+  // Check if the current user has the role 'patient'.
+  if ($current_user->hasRole('patient')) {
+    // Check if the node is of type 'child_accounts'.
+    if ($node->bundle() === 'child_accounts') {
+      // Get the target ID of the term from the vocabulary reference field.
+      $dependent_account_term_id = $node->get('field_dependent_account_for')->target_id;
+
+      // Load the term entity.
+      if ($dependent_account_term_id) {
+        $term = Term::load($dependent_account_term_id);
+
+        // Check if the term name is 'Spouse'.
+        if ($term && $term->getName() === 'Spouse') {
+          // Set the node status to unpublished.
+          $node->setUnpublished();
+          $node->save(); // Save the node status change.
+
+          // Get the email field value.
+          $to = $node->get('field_email')->value;
+
+          $token = generate_numeric_token(10);  // Generate a 10-digit numeric token.
+          $nid = $node->id();  // Get the node ID.
+
+          // Save the token in a custom field or database for later verification.
+          $node->set('field_verification_token', $token);
+          $node->save();  // Save the node with the token.
+
+          // Generate the link.
+          $verification_link = Url::fromRoute('mygotodoc_dependent_user.verify', [
+            'nid' => $nid,
+          ], [
+            'query' => ['token' => $token],
+            'absolute' => TRUE,
+          ])->toString();
+
+          if ($to) {
+            // Display a status message including the spouse's email.
+            \Drupal::messenger()->addStatus(t('Spouse consent will be required to create this account. An email has been sent to @spouse_email.', ['@spouse_email' => $to]));
+
+            // Send the email.
+            $emailFactory = \Drupal::service('email_factory');
+            $email = $emailFactory->newTypedEmail('mailer_mgtd_builder', 'spouseConsent');
+            $email->setVariable('varification_path', $verification_link);
+
+            $email->setTo($to);
+            $email->send();
+          }
+        }
+      }
+    }
+  }
+}
+
+
+
+/**
+ * Generates a random numeric token of a given length.
+ *
+ * @param int $length
+ *   The length of the numeric token.
+ *
+ * @return string
+ *   The generated numeric token.
+ */
+function generate_numeric_token($length = 10) {
+    $token = '';
+    for ($i = 0; $i < $length; $i++) {
+      $token .= random_int(0, 9);  // Generate a random digit between 0 and 9.
+    }
+    return $token;
+  }
+  

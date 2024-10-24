@@ -1,0 +1,24 @@
+mygotodoc_independent_user.confirm_modal:
+  path: '/node/{node}/make-independent/confirm'
+  defaults:
+    _controller: '\Drupal\mygotodoc_independent_user\Controller\IndependentUserController::confirmModal'
+    _title: 'Confirm Independent User Creation'
+  requirements:
+    _custom_access: 'mygotodoc_independent_user.access_check::access'
+    node: \d+
+  options:
+    parameters:
+      node:
+        type: entity:node
+
+mygotodoc_independent_user.create_user:
+  path: '/node/{node}/make-independent/create'
+  defaults:
+    _controller: '\Drupal\mygotodoc_independent_user\Controller\IndependentUserController::ajaxCreateUser'
+  requirements:
+    _custom_access: 'mygotodoc_independent_user.access_check::access'
+    node: \d+
+  options:
+    parameters:
+      node:
+        type: entity:node

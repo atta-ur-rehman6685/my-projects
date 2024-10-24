@@ -1,0 +1,8 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function medical_form_config_install() {
+  \Drupal::configFactory()->getEditable('medical_form_config.settings')->set('field_product_mapping', [])->save();
+}

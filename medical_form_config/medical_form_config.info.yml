@@ -1,0 +1,9 @@
+name: 'Medical Form Config'
+type: module
+description: 'Adds configuration page for medical form fields and allows selecting products for each field.'
+core_version_requirement: ^10
+package: Custom
+dependencies:
+  - drupal:field
+  - drupal:node
+  - drupal:commerce_product

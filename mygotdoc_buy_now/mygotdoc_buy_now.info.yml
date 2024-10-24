@@ -1,0 +1,10 @@
+name: Commerce Buy Now
+type: module
+description: Allow for customer add product to the cart and redirect the customer to the checkout page by clicking on the "Buy Now" button
+package: Commerce Buy Now
+core_version_requirement: ^10
+dependencies:
+  - commerce:commerce
+  - commerce:commerce_cart
+  - commerce:commerce_store
+  - commerce:commerce_checkout

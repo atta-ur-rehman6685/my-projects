@@ -1,0 +1,10 @@
+name: 'address autocomplete'
+type: module
+description: 'commerce checkout page address autocomplete.'
+core_version_requirement: ^9 || ^10
+package: Custom
+dependencies:
+  - drupal:views
+project: 'checkout_form_place_autocom'
+library:
+  - checkout_form_place_autocom/google-maps-api

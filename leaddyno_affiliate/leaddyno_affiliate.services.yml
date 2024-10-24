@@ -1,0 +1,15 @@
+services:
+  leaddyno_affiliate.service:
+    class: Drupal\leaddyno_affiliate\Service\LeadDynoAffiliateService
+    arguments: ['@config.factory', '@http_client', '@logger.channel.default']
+  leaddyno_affiliate.purchase_service:
+    class: Drupal\leaddyno_affiliate\Service\LeadDynoPurchaseService
+    arguments: ['@config.factory', '@http_client', '@logger.channel.default']
+  leaddyno_affiliate.affiliate_code_subscriber:
+    class: Drupal\leaddyno_affiliate\EventSubscriber\AffiliateCodeSubscriber
+    tags:
+      - { name: event_subscriber }
+  leaddyno_affiliate.commission_service:
+    class: Drupal\leaddyno_affiliate\Service\LeadDynoCommissionService
+    arguments: ['@config.factory', '@http_client', '@logger.channel.default']
+

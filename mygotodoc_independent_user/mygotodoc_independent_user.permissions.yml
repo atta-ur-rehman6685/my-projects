@@ -1,0 +1,4 @@
+create_patient_role_users:
+  title: 'Create users with the patient role'
+  description: 'Allow users with the patient role to create other patient role users.'
+  restrict access: TRUE

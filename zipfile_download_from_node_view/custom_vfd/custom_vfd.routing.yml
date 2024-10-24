@@ -1,0 +1,18 @@
+custom_vfd.route:
+  path: '/download-custom-view/download_files'
+  defaults:
+    _controller: '\Drupal\custom_vfd\Controller\DownloadCustomViewController::handleData'
+    _title: 'Handle Data'
+  methods: ['POST']
+  requirements:
+    _permission: 'access content'
+    _format: 'json'
+
+custom_vfd.download_view:
+  path: '/download-node-files/{path}'
+  defaults:
+    _controller: '\Drupal\custom_vfd\Controller\DownloadZipFile::downloadFile'
+    _title: 'Download Files'
+    _custom_arg: '{path}'
+  requirements:
+    _permission: 'access custom_vfd'

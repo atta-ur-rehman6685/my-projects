@@ -1,0 +1,294 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for Commerce Buy Now module.
+ */
+
+use Drupal\commerce_order\Entity\OrderItemInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mygotdoc_buy_time_slot_form_commerce_order_item_add_to_cart_form_alter(&$form, FormStateInterface $form_state)
+{
+
+  $form_storage = $form_state->getStorage();
+  $product = $form_storage['product'];
+
+  //added by atta for subscription
+  if ($product->bundle() == "health_programs") {
+    $form['actions']['submit']['#access'] = FALSE;
+  }
+  //close by atta
+
+  if ($product->bundle() == "consult_booking") {
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $product_variation_id = $product->get('variations')->target_id;
+    $variation_obj = $entity_type_manager
+      ->getStorage('commerce_product_variation')
+      ->load($product_variation_id);
+
+    $requestedData = \Drupal::request();
+    $bookable = $entity_type_manager
+      ->getStorage('bookable_calendar')
+      ->load($variation_obj->get('field_available_slots')->target_id);
+    $slotsOptions = [];
+    $bookedSlots = [];
+    $bookableOpenings = $bookable->get('calendar_openings')->getValue();
+    $defaultValue = 0;
+    if (count($bookableOpenings) > 0) {
+      foreach ($bookableOpenings as $key => $bookableOpening) {
+        $bookableOpeningOBJ = $entity_type_manager
+          ->getStorage('bookable_calendar_opening')
+          ->load($bookableOpening['target_id']);
+        if ($bookableOpeningOBJ) {
+          $slots = $bookableOpeningOBJ->get('booking_instance')->getValue();
+          foreach ($slots as $sKey => $slotID) {
+
+            $slotObj = $entity_type_manager
+              ->getStorage('bookable_calendar_opening_inst')
+              ->load($slotID['target_id']);
+            $slotDate = $slotObj->get('date')->getValue();
+            $startDate = date("D, M j Y", $slotDate[0]['value']);
+            if ($slotObj->slotsAvailable()) {
+              $slotsOptions[$startDate][$slotObj->id()] = date("D, M j Y g:i", $slotDate[0]['value']) . " - " . date("g:i a", $slotDate[0]['end_value']);
+            }
+
+            if (!$slotObj->slotsAvailable()) {
+              $bookedSlots[$slotObj->id()] = ['disabled' => 'true'];
+              $slotsOptions[$startDate][date("D, M j Y g:i", $slotDate[0]['value']) . " - " . date("g:i a", $slotDate[0]['end_value']) . ' Booked'] = [];
+            }
+            /*if($slotObj->slotsAvailable()){
+              $slotsOptions[$slotObj->id()] = date("D, M j Y g:i", $slotDate[0]['value']). " - ". date("g:i a", $slotDate[0]['end_value']);
+            }*/
+            if ($defaultValue < 1 && $slotObj->slotsAvailable()) {
+              $defaultValue = $slotObj->id();
+            }
+          }
+        }
+      }
+    }
+
+    $form['avaiable_slots'] = [
+      '#type' => 'select',
+      '#required' => true,
+      '#title' => 'Select a Slot',
+      //'#options' => $slotsOptions,
+      '#default_value' => $defaultValue,
+      //'#attributes' => $bookedSlots,
+      '##option_attributes' => $bookedSlots,
+      '#attributes' => [
+        'class' => ['visually-hidden-slots'],
+      ],
+    ];
+
+    foreach ($slotsOptions as $date => $options) {
+      // Add date as a visual separator.
+      $form['avaiable_slots']['#options'][$date] = [];
+
+      foreach ($options as $value => $label) {
+        // Add each option under the date.
+        $form['avaiable_slots']['#options'][$value] = $label;
+      }
+    }
+
+    // Attach a custom submit handler to save this data.
+    $form['actions']['submit']['#access'] = FALSE;
+    $form['actions']['commerce_buy_now']['#access'] = FALSE;
+    $form['actions']['commerce_add_to_cart_slot'] = [
+      '#type' => 'submit',
+      '#value' => t('Add to Cart'),
+      '#weight' => 9,
+      '#submit' => [
+        'mygotdoc_buy_time_slot_add_to_cart_button_clicked', // 1st handler
+        'mygotdoc_buy_time_slot_commerce_order_item_add_to_cart_form_submit', // 2nd handler
+      ],
+      '#attributes' => [
+        'class' => ['button--primary button--add-to-cart'],
+      ],
+    ];
+    
+    $form['actions']['commerce_buy_now_slot'] = [
+      '#type' => 'submit',
+      '#value' => t('Buy Now'),
+      '#weight' => 10,
+      '#submit' => [
+        'mygotdoc_buy_time_slot_buy_now_button_clicked', // 1st handler
+        'mygotdoc_buy_time_slot_commerce_order_item_add_to_cart_form_submit', // 2nd handler
+      ],
+      '#attributes' => [
+        'class' => ['button--primary button--buy-now'],
+      ],
+    ];
+
+    //$form['actions']['submit']['#submit'][] = 'mygotdoc_buy_time_slot_commerce_order_item_add_to_cart_form_submit';
+
+
+  }
+}
+
+/**
+ * Sets a flag in the form state to indicate that the Add to Cart button was clicked.
+ */
+function mygotdoc_buy_time_slot_add_to_cart_button_clicked(array &$form, FormStateInterface $form_state) {
+  $form_state->set('button_clicked', 'add_to_cart');
+}
+
+/**
+ * Sets a flag in the form state to indicate that the Buy Now button was clicked.
+ */
+function mygotdoc_buy_time_slot_buy_now_button_clicked(array &$form, FormStateInterface $form_state) {
+  $form_state->set('button_clicked', 'buy_now');
+}
+
+/**
+ * Adds an item to the shopping cart and redirects to the checkout page.
+ *
+ * @param array $form
+ *   Nested array of form elements that comprise the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ */
+function mygotdoc_buy_time_slot_commerce_order_item_add_to_cart_form_submit($form, FormStateInterface $form_state)
+{
+
+
+  $form_storage = $form_state->getStorage();
+  $product = $form_storage['product'];
+  $booking_slot_id = $form_state->getValue('avaiable_slots');
+
+  $product_variation_id = $product->get('variations')->target_id;
+
+
+  $store_id = $product->get('stores')->target_id;
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $variation_obj = $entity_type_manager
+    ->getStorage('commerce_product_variation')
+    ->load($product_variation_id);
+  $selectedSKU = $variation_obj->getSku();
+
+  $store = $entity_type_manager
+    ->getStorage('commerce_store')
+    ->load($store_id);
+
+  $cart_provider = \Drupal::service('commerce_cart.cart_provider');
+  $cart = $cart_provider->getCart('default', $store);
+
+  if (!$cart) {
+    $cart = $cart_provider->createCart('default', $store);
+  }
+
+  $cart_manager = \Drupal::service('commerce_cart.cart_manager');
+
+  $cart_items = $cart->getItems();
+
+  foreach ($cart_items as $cart_item) {
+    $cartItemSKU = $cart_item->getPurchasedEntity()->getSku();
+
+    if ($cartItemSKU == $selectedSKU) {
+      $cart_manager->removeOrderItem($cart, $cart_item);
+    }
+  }
+
+
+
+
+  $user_input = $form_state->getUserInput();
+  $quantity = isset($user_input['quantity'][0]['value']) && $user_input['quantity'][0]['value'] > 0
+    ? $user_input['quantity'][0]['value']
+    : '1';
+
+  $orderItem  = $cart_manager->addEntity($cart, $variation_obj, $quantity);
+  $orderItem->set('field_booking_slot_id', $booking_slot_id);
+  $orderItem->save();
+
+  // Check which button was clicked.
+  $button_clicked = $form_state->get('button_clicked');
+
+  if ($button_clicked == 'buy_now') {
+    // Redirect to the cart page.
+    $form_state->setRedirect('commerce_cart.page');
+  }
+
+
+  //$orderItem = $form_state->getEntity();
+  /*$form_storage = $form_state->getStorage();
+  $product = $form_storage['product'];
+
+  $booking_slot_id = $form_state->getValue('avaiable_slots');
+
+  if($product->bundle() == "live_session"){
+    $product_variation_id = $product->get('variations')->target_id;
+    $store_id = $product->get('stores')->target_id;
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $variation_obj = $entity_type_manager
+      ->getStorage('commerce_product_variation')
+      ->load($product_variation_id);
+
+    $variation_obj->set("field_selected_slot", $booking_slot_id);
+    $variation_obj->save();
+  }*/
+
+
+  /*$form_storage = $form_state->getStorage();
+  $product = $form_storage['product'];
+  $product_variation_id = $product->get('variations')->target_id;
+  $product_variation_id = $product->get('variations')->target_id;
+  $store_id = $product->get('stores')->target_id;
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  $cart_provider = \Drupal::service('commerce_cart.cart_provider');
+  $cart = $cart_provider->getCart('default', $store);
+
+  if (!$cart) {
+    $cart = $cart_provider->createCart('default', $store);
+  }
+  $cart_manager = \Drupal::service('commerce_cart.cart_manager');
+  $items = $cart->getItems();
+  foreach($items as $item){
+    if($item->bundle() == "live_session_order_item_type"){
+
+      print_r($item->get("field_booking_slot_id")->getValue()) . "<br>";
+    }
+    //print_r($item->bundle()) . "<br>";
+
+  }
+  exit;
+
+  $product_variation_type_id = $product->bundle();
+
+  // Load the product variation type entity.
+  $product_variation_type = \Drupal::entityTypeManager()
+    ->getStorage('commerce_product_variation_type')
+    ->load($product_variation_type_id);
+
+  // Get the order item type ID.
+  $order_item_type_id = $product_variation_type->getOrderItemTypeId();
+  $order_item_type = \Drupal::entityTypeManager()
+      ->getStorage('commerce_order_item_type')
+      ->load($order_item_type_id);
+      
+    print_r($product_variation_type_id);
+    exit;
+  // Get the submitted values.
+  $user_input = $form_state->getUserInput();
+  
+  print_r($booking_slot_id);
+  exit;
+  $booking_slot_id = $form_state->getValue('avaiable_slots');
+  // Load the order item that is being created.
+  // @var \Drupal\commerce_order\Entity\OrderItemInterface $order_item ///
+  $order_item = $form_state->get('order_item');
+  print_r($order_item->bundle());
+  // Check if the order item is of a specific type, if necessary.
+  if ($order_item instanceof OrderItemInterface && $order_item->bundle() == 'live_session_order_item_type') {
+    // Save the custom field value to the order item.
+    $order_item->set('field_booking_slot_id', ['target_id' => $booking_slot_id]);
+    $order_item->save();
+    print_r($order_item->get("field_booking_slot_id"));
+    exit;
+  }*/
+}
